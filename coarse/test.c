@@ -2,105 +2,84 @@
 #include <time.h>
 #include "LinkedList.h"
 
-#define NUM_OF_THREAD 1
-#define NUM_OF_NODES 100000
-#define MAX_NANO_SECOND 1000000000
+#define NUM_OF_THREAD 50
 
 typedef struct ll_op_args
 {
     head *h;
-    int key;
+    int key_stt;
+    int key_end;
+    int ret[NUM_OF_NODES / NUM_OF_THREAD];
 } ll_op_args;
-
-int calc_time_diff_search(head *h, int key)
-{
-
-    struct timespec stt, end;
-
-    clock_gettime(CLOCK_MONOTONIC, &stt);
-    node *cur = search_node(h, key);
-    clock_gettime(CLOCK_MONOTONIC, &end);
-    if (cur->val != NUM_OF_NODES - key)
-        printf("Error at key : %d", key);
-
-    if (stt.tv_sec == end.tv_sec)
-        return (int)(end.tv_nsec - stt.tv_nsec);
-    else
-        return (int)((MAX_NANO_SECOND - stt.tv_nsec) + end.tv_nsec);
-}
-
-int calc_time_diff_add(head *h, int key)
-{
-    struct timespec stt, end;
-
-    clock_gettime(CLOCK_MONOTONIC, &stt);
-    add_node(h, key, NUM_OF_NODES - key);
-    clock_gettime(CLOCK_MONOTONIC, &end);
-
-    if (stt.tv_sec == end.tv_sec)
-        return (int)(end.tv_nsec - stt.tv_nsec);
-    else
-        return (int)((MAX_NANO_SECOND - stt.tv_nsec) + end.tv_nsec);
-}
 
 void *wrapper_search(void *arg)
 {
 
-    int *ret = (int *)malloc(sizeof(int));
-
     ll_op_args *arg_convert = (ll_op_args *)arg;
 
-    *ret = calc_time_diff_search(arg_convert->h, arg_convert->key);
+    for (int i = arg_convert->key_stt; i < arg_convert->key_end; i++)
+        arg_convert->ret[i - arg_convert->key_stt] = calc_time_diff_search(arg_convert->h, i);
 
-    return (void *)ret;
+    return NULL;
 }
 
 void *wrapper_add(void *arg)
 {
-    printf("start wrapper add\n");
+
     ll_op_args *arg_convert = (ll_op_args *)arg;
 
-    calc_time_diff_add(arg_convert->h, arg_convert->key);
+    for (int i = arg_convert->key_stt; i < arg_convert->key_end; i++)
+        arg_convert->ret[i - arg_convert->key_stt] = calc_time_diff_add(arg_convert->h, i);
+
+    return NULL;
 }
 
 int main()
 {
+    // values for measuring time
+    long long int total_add_time = 0;
+    long long int total_search_time = 0;
 
-    int write_time[NUM_OF_NODES] = {0};
-    int read_time[NUM_OF_NODES] = {0};
-
+    // values for creating threads
+    ll_op_args args_add[NUM_OF_THREAD];
+    ll_op_args args_search[NUM_OF_THREAD];
     pthread_t threads[NUM_OF_THREAD];
 
     head *ll = init_linked_list();
 
-    for (int i = 0; i < (NUM_OF_NODES / NUM_OF_THREAD); i++)
+    for (int i = 0; i < NUM_OF_THREAD; i++)
     {
-        ll_op_args args[NUM_OF_THREAD] = {0};
-        int t_id[NUM_OF_THREAD];
-        for (int j = 0; j < NUM_OF_THREAD; j++)
+
+        args_add[i].h = ll;
+        args_add[i].key_stt = i * (NUM_OF_NODES / NUM_OF_THREAD);
+        args_add[i].key_end = (i + 1) * (NUM_OF_NODES / NUM_OF_THREAD);
+
+        pthread_create(&threads[i], NULL, wrapper_add, (void *)&args_add[i]);
+        pthread_join(threads[i], NULL);
+    }
+
+    for (int i = 0; i < NUM_OF_THREAD; i++)
+    {
+
+        args_search[i].h = ll;
+        args_search[i].key_stt = i * (NUM_OF_NODES / NUM_OF_THREAD);
+        args_search[i].key_end = (i + 1) * (NUM_OF_NODES / NUM_OF_THREAD);
+
+        pthread_create(&threads[i], NULL, wrapper_search, (void *)&args_search[i]);
+        pthread_join(threads[i], NULL);
+    }
+
+    for (int i = 0; i < NUM_OF_THREAD; i++)
+    {
+        for (int j = 0; j < NUM_OF_NODES / NUM_OF_THREAD; j++)
         {
-            args[j].key = j + i;
-            args[j].h = ll;
-            t_id[j] = j;
-            printf("%d\n", j);
-            pthread_create(&threads[t_id[j]], NULL, wrapper_add, (void *)&args[t_id[j]]);
-            printf("%d\n", j);
+            total_add_time += (long long int)args_add[i].ret[j];
+            total_search_time += (long long int)args_search[i].ret[j];
         }
-
-        for (int j = 0; j < NUM_OF_THREAD; j++)
-            pthread_join(&threads[j], NULL);
     }
 
-    for (int i = 0; i < NUM_OF_NODES; i++)
-    {
-        node *cur = search_node(ll, i);
-
-        if (cur->val != NUM_OF_NODES - i)
-            printf("Error at key : %d", i);
-    }
-
-    // printf("avg write time : %f ns\n", (double)sum_write_time / NUM_OF_NODES);
-    // printf("avg read time : %f ns\n", (double)sum_read_time / NUM_OF_NODES);
+    printf("avg add time : %lld\n", total_add_time / NUM_OF_NODES);
+    printf("avg search time : %lld\n", total_search_time / NUM_OF_NODES);
 
     return 0;
 }

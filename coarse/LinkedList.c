@@ -78,3 +78,38 @@ int remove_node(head *h, int key)
 
     return 0;
 }
+
+/*
+    measure elapsed time
+*/
+
+int calc_time_diff_search(head *h, int key)
+{
+
+    struct timespec stt, end;
+
+    clock_gettime(CLOCK_MONOTONIC, &stt);
+    node *cur = search_node(h, key);
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    if (cur->val != NUM_OF_NODES - key)
+        printf("Error at key : %d", key);
+
+    if (stt.tv_sec == end.tv_sec)
+        return (int)(end.tv_nsec - stt.tv_nsec);
+    else
+        return (int)((MAX_NANO_SECOND - stt.tv_nsec) + end.tv_nsec);
+}
+
+int calc_time_diff_add(head *h, int key)
+{
+    struct timespec stt, end;
+
+    clock_gettime(CLOCK_MONOTONIC, &stt);
+    add_node(h, key, NUM_OF_NODES - key);
+    clock_gettime(CLOCK_MONOTONIC, &end);
+
+    if (stt.tv_sec == end.tv_sec)
+        return (int)(end.tv_nsec - stt.tv_nsec);
+    else
+        return (int)((MAX_NANO_SECOND - stt.tv_nsec) + end.tv_nsec);
+}
