@@ -55,8 +55,10 @@ int main()
         args_add[i].key_end = (i + 1) * (NUM_OF_NODES / NUM_OF_THREAD);
 
         pthread_create(&threads[i], NULL, wrapper_add, (void *)&args_add[i]);
-        pthread_join(threads[i], NULL);
     }
+
+    for (int i = 0; i < NUM_OF_THREAD; i++)
+        pthread_join(threads[i], NULL);
 
     for (int i = 0; i < NUM_OF_THREAD; i++)
     {
@@ -66,8 +68,10 @@ int main()
         args_search[i].key_end = (i + 1) * (NUM_OF_NODES / NUM_OF_THREAD);
 
         pthread_create(&threads[i], NULL, wrapper_search, (void *)&args_search[i]);
-        pthread_join(threads[i], NULL);
     }
+
+    for (int i = 0; i < NUM_OF_THREAD; i++)
+        pthread_join(threads[i], NULL);
 
     for (int i = 0; i < NUM_OF_THREAD; i++)
     {
